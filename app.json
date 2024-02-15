@@ -15,8 +15,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "permissions": ["NSPhotoLibraryUsageDescription"]
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
