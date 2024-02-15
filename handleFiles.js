@@ -2,6 +2,8 @@ import * as FileSystem from "expo-file-system";
 import { parse } from "papaparse";
 import _ from "lodash";
 
+export const EXIST_FILE_NAME = "food.txt";
+
 export const readFile = async (filePath) => {
   try {
     const fileContent = await FileSystem.readAsStringAsync(filePath, {
@@ -12,6 +14,11 @@ export const readFile = async (filePath) => {
   } catch (error) {
     console.error("Error reading file:", error);
   }
+};
+
+export const readExistedFile = async () => {
+  const filePath = FileSystem.documentDirectory + EXIST_FILE_NAME;
+  return await readFile(filePath);
 };
 
 export const paresCsv = (fileContent) => {

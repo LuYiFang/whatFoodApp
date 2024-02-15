@@ -10,7 +10,13 @@ import {
 import { AntDesign } from "@expo/vector-icons";
 import { Button as PaperButton } from "react-native-paper";
 import _ from "lodash";
-import { paresCsv, readFile, writeFile } from "./handleFiles";
+import {
+  EXIST_FILE_NAME,
+  paresCsv,
+  readExistedFile,
+  readFile,
+  writeFile,
+} from "./handleFiles";
 import * as DocumentPicker from "expo-document-picker";
 
 const MULTI_DRAW_NUM = 5;
@@ -72,19 +78,34 @@ export default function App() {
   const [restaurants, setRestaurants] = useState([]);
   const [groupItems, setGroupItems] = useState([]);
 
-  const handleReload = () => {
-    getRestaurants();
-    setRestaurants([]);
+  useEffect(() => {
+    initRead().then((newData) => {
+      handleDraw(MULTI_DRAW_NUM, newData);
+    });
+  }, []);
+
+  const initRead = async () => {
+    const fileContent = await readExistedFile();
+    if (!fileContent) return;
+
+    const newData = paresCsv(fileContent);
+    setData(newData);
+    return newData;
   };
 
-  const handleDraw = (num = 1) => {
+  const handleReload = async () => {
+    const newData = await initRead();
+    handleDraw(MULTI_DRAW_NUM, newData);
+  };
+
+  const handleDraw = (num = 1, targetData) => {
     let newRestaurants = null;
 
     if (num >= MULTI_DRAW_NUM) {
-      newRestaurants = _.sampleSize(data, MULTI_DRAW_NUM);
+      newRestaurants = _.sampleSize(targetData, MULTI_DRAW_NUM);
       setGroupItems(newRestaurants);
     } else {
-      const pool = _.difference(data, restaurants);
+      const pool = _.difference(targetData, restaurants);
       if (pool.length <= 0) return;
 
       const newPrizeNumber = Math.floor(Math.random() * pool.length);
@@ -118,7 +139,7 @@ export default function App() {
       const csv = paresCsv(fileContent);
       setData(csv);
 
-      await writeFile(file.name, fileContent);
+      await writeFile(EXIST_FILE_NAME, fileContent);
     } catch (error) {
       console.log("Error uploading file:", error.message);
     }
@@ -159,7 +180,7 @@ export default function App() {
           mode="contained"
           labelStyle={styles.buttonText}
           style={styles.button}
-          onPress={() => handleDraw(1)}
+          onPress={() => handleDraw(1, data)}
         >
           1 抽
         </PaperButton>
@@ -167,7 +188,7 @@ export default function App() {
           mode="contained"
           labelStyle={styles.buttonText}
           style={styles.button}
-          onPress={() => handleDraw(MULTI_DRAW_NUM)}
+          onPress={() => handleDraw(MULTI_DRAW_NUM, data)}
         >
           {`${MULTI_DRAW_NUM}`} 抽
         </PaperButton>
