@@ -6,13 +6,16 @@ import {
   FlatList,
   StyleSheet,
   Animated,
+  ScrollView,
 } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
 import { Button as PaperButton } from "react-native-paper";
 import _ from "lodash";
 import {
-  EXIST_FILE_NAME,
+  EXIST_FILE_PREFIX,
+  findExistedFileList,
   paresCsv,
+  readExistedCsv,
   readExistedFile,
   readFile,
   writeFile,
@@ -21,6 +24,8 @@ import * as DocumentPicker from "expo-document-picker";
 
 const MULTI_DRAW_NUM = 5;
 const MAX_LIST = 11;
+const TOP_OFFSET = 16;
+const FUNCTION_BLOCK_HEIGHT = 72;
 
 const RestaurantItem = ({
   item,
@@ -77,6 +82,7 @@ export default function App() {
   const [data, setData] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [groupItems, setGroupItems] = useState([]);
+  const [fileList, setFileList] = useState([]);
 
   useEffect(() => {
     initRead().then((newData) => {
@@ -84,11 +90,16 @@ export default function App() {
     });
   }, []);
 
-  const initRead = async () => {
-    const fileContent = await readExistedFile();
-    if (!fileContent) return;
+  useEffect(() => {
+    handleDraw(MULTI_DRAW_NUM, data);
+  }, [data]);
 
-    const newData = paresCsv(fileContent);
+  const initRead = async () => {
+    const newFileList = await findExistedFileList();
+    setFileList(newFileList);
+    if (newFileList.length <= 0) return;
+
+    const newData = await readExistedCsv(newFileList[0]);
     setData(newData);
     return newData;
   };
@@ -139,10 +150,16 @@ export default function App() {
       const csv = paresCsv(fileContent);
       setData(csv);
 
-      await writeFile(EXIST_FILE_NAME, fileContent);
+      const filename = await writeFile(file.name, fileContent);
+      setFileList(_.uniq([...fileList, filename]));
     } catch (error) {
       console.log("Error uploading file:", error.message);
     }
+  };
+
+  const handleSwitchFiles = async (filename) => {
+    const newData = await readExistedCsv(filename);
+    setData(newData);
   };
 
   return (
@@ -151,12 +168,38 @@ export default function App() {
         <PaperButton
           mode="contained"
           labelStyle={styles.buttonText}
-          style={styles.button}
+          style={[styles.button, styles.uploadButton]}
           onPress={() => handleUpload()}
         >
           Upload
         </PaperButton>
       </View>
+
+      <View style={styles.tabContainer}>
+        <ScrollView
+          horizontal
+          contentContainerStyle={styles.tabScrollContainer}
+          showsHorizontalScrollIndicator={false}
+        >
+          {_.map(fileList, (filename) => {
+            const displayName = (filename || "")
+              .replace(EXIST_FILE_PREFIX, "")
+              .replace(".csv", "");
+            return (
+              <PaperButton
+                key={displayName}
+                mode="contained"
+                labelStyle={styles.buttonText}
+                style={styles.button}
+                onPress={() => handleSwitchFiles(filename)}
+              >
+                {displayName}
+              </PaperButton>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       <View style={styles.listContainer}>
         <FlatList
           data={restaurants}
@@ -175,6 +218,7 @@ export default function App() {
           }}
         />
       </View>
+
       <View style={styles.buttonContainer}>
         <PaperButton
           mode="contained"
@@ -201,17 +245,31 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  tabScrollContainer: {},
   uploadContainer: {
-    backgroundColor: "#E3E294",
+    backgroundColor: "#ffffff",
     display: "flex",
     padding: 8,
     paddingTop: 24,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    height: 88,
+    height: FUNCTION_BLOCK_HEIGHT + TOP_OFFSET,
     position: "absolute",
     top: 0,
+    left: 0,
+    right: 0,
+  },
+  tabContainer: {
+    backgroundColor: "#E3E294",
+    display: "flex",
+    padding: 8,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    height: FUNCTION_BLOCK_HEIGHT,
+    position: "absolute",
+    top: FUNCTION_BLOCK_HEIGHT + TOP_OFFSET,
     left: 0,
     right: 0,
   },
@@ -226,8 +284,8 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     padding: 16,
-    paddingTop: 88,
-    paddingBottom: 72,
+    paddingTop: FUNCTION_BLOCK_HEIGHT * 2 + TOP_OFFSET,
+    paddingBottom: FUNCTION_BLOCK_HEIGHT,
   },
   itemAnimated: {},
   listItem: {
@@ -253,7 +311,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    height: 72,
+    height: FUNCTION_BLOCK_HEIGHT,
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -265,9 +323,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#404078",
+    width: "fit-content",
+    marginLeft: 3,
+    marginRight: 3,
   },
   buttonText: {
     fontSize: 18,
+  },
+  uploadButton: {
+    backgroundColor: "#7373D9",
   },
   iconButton: {
     fontSize: 24,

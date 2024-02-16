@@ -22,10 +22,18 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "permissions": ["READ_EXTERNAL_STORAGE"]
+      "permissions": [
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "package": "com.tech99x.whatFoodApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cfacf4b5-2b61-4994-a58d-5b0eac60d423"
+      }
     }
   }
 }
