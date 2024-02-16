@@ -128,13 +128,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!data || data.length <= 0) return;
+
     handleDraw(MULTI_DRAW_NUM, data);
   }, [data]);
 
   const initRead = async () => {
     const newFileList = await findExistedFileList();
     setFileList(newFileList);
-    if (newFileList.length <= 0) return;
+    if (newFileList.length <= 0) return [];
 
     const newData = await readExistedCsv(newFileList[0]);
     setData(newData);
