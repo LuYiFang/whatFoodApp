@@ -80,7 +80,12 @@ const RestaurantItem = ({
   );
 };
 
-const LongPressButton = ({ filename, handleSwitchFiles, handleLongPress }) => {
+const LongPressButton = ({
+  disabled,
+  filename,
+  handleSwitchFiles,
+  handleLongPress,
+}) => {
   const displayName = (filename || "")
     .replace(EXIST_FILE_PREFIX, "")
     .replace(".csv", "");
@@ -98,6 +103,7 @@ const LongPressButton = ({ filename, handleSwitchFiles, handleLongPress }) => {
           mode="contained"
           labelStyle={styles.buttonText}
           style={{ marginRight: 5 }}
+          disabled={disabled}
         >
           {displayName}
         </Button>
@@ -111,6 +117,7 @@ export default function App() {
   const [restaurants, setRestaurants] = useState([]);
   const [groupItems, setGroupItems] = useState([]);
   const [fileList, setFileList] = useState([]);
+  const [currentDataFilename, setCurrentDataFilename] = useState("");
   const [longPressFilename, setLongPressFilename] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -131,6 +138,7 @@ export default function App() {
 
     const newData = await readExistedCsv(newFileList[0]);
     setData(newData);
+    setCurrentDataFilename(newFileList[0]);
     return newData;
   };
 
@@ -182,6 +190,9 @@ export default function App() {
 
       const filename = await writeFile(file.name, fileContent);
       setFileList(_.uniq([...fileList, filename]));
+      setCurrentDataFilename(filename);
+
+      handleDraw(MULTI_DRAW_NUM, csv);
     } catch (error) {
       console.log("Error uploading file:", error.message);
     }
@@ -190,6 +201,7 @@ export default function App() {
   const handleSwitchFiles = async (filename) => {
     const newData = await readExistedCsv(filename);
     setData(newData);
+    setCurrentDataFilename(filename);
   };
 
   const handleLongPress = (filename) => {
@@ -204,11 +216,13 @@ export default function App() {
     setFileList(newFileList);
     if (newFileList.length <= 0) {
       setData([]);
+      setCurrentDataFilename("");
       return;
     }
 
     const newData = await readExistedCsv(newFileList[0]);
     setData(newData);
+    setCurrentDataFilename(newFileList[0]);
   };
 
   return (
@@ -235,6 +249,7 @@ export default function App() {
               return (
                 <LongPressButton
                   key={filename}
+                  disabled={currentDataFilename !== filename}
                   filename={filename}
                   handleSwitchFiles={handleSwitchFiles}
                   handleLongPress={handleLongPress}
