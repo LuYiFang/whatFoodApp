@@ -17,7 +17,6 @@ import {
   findExistedFileList,
   paresCsv,
   readExistedCsv,
-  readExistedFile,
   readFile,
   writeFile,
 } from "./handleFiles";
