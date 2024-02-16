@@ -68,3 +68,14 @@ export const writeFile = async (path, content) => {
     return null;
   }
 };
+
+export const deleteFile = async (filename) => {
+  try {
+    const filePath = FileSystem.documentDirectory + filename;
+    await FileSystem.deleteAsync(filePath);
+    return true;
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    return false;
+  }
+};

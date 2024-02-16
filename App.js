@@ -9,10 +9,11 @@ import {
   ScrollView,
 } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
-import { Button as PaperButton } from "react-native-paper";
+import { Button, PaperProvider } from "react-native-paper";
 import _ from "lodash";
 import {
   EXIST_FILE_PREFIX,
+  deleteFile,
   findExistedFileList,
   paresCsv,
   readExistedCsv,
@@ -21,6 +22,7 @@ import {
   writeFile,
 } from "./handleFiles";
 import * as DocumentPicker from "expo-document-picker";
+import DeleteDialog from "./components/DeleteDialog";
 
 const MULTI_DRAW_NUM = 5;
 const MAX_LIST = 11;
@@ -78,11 +80,39 @@ const RestaurantItem = ({
   );
 };
 
+const LongPressButton = ({ filename, handleSwitchFiles, handleLongPress }) => {
+  const displayName = (filename || "")
+    .replace(EXIST_FILE_PREFIX, "")
+    .replace(".csv", "");
+
+  return (
+    <>
+      <TouchableOpacity
+        onPress={() => handleSwitchFiles(filename)}
+        onLongPress={() => {
+          handleLongPress(filename);
+        }}
+      >
+        <Button
+          key={displayName}
+          mode="contained"
+          labelStyle={styles.buttonText}
+          style={{ marginRight: 5 }}
+        >
+          {displayName}
+        </Button>
+      </TouchableOpacity>
+    </>
+  );
+};
+
 export default function App() {
   const [data, setData] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [groupItems, setGroupItems] = useState([]);
   const [fileList, setFileList] = useState([]);
+  const [longPressFilename, setLongPressFilename] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     initRead().then((newData) => {
@@ -162,85 +192,112 @@ export default function App() {
     setData(newData);
   };
 
+  const handleLongPress = (filename) => {
+    setLongPressFilename(filename);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleCleanFile = async () => {
+    deleteFile(longPressFilename);
+
+    const newFileList = _.filter(fileList, (v) => v !== longPressFilename);
+    setFileList(newFileList);
+    if (newFileList.length <= 0) {
+      setData([]);
+      return;
+    }
+
+    const newData = await readExistedCsv(newFileList[0]);
+    setData(newData);
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.uploadContainer}>
-        <PaperButton
-          mode="contained"
-          labelStyle={styles.buttonText}
-          style={[styles.button, styles.uploadButton]}
-          onPress={() => handleUpload()}
-        >
-          Upload
-        </PaperButton>
-      </View>
+    <PaperProvider>
+      <View style={styles.container}>
+        <View style={styles.uploadContainer}>
+          <Button
+            mode="contained"
+            labelStyle={styles.buttonText}
+            style={[styles.button, styles.uploadButton]}
+            onPress={() => handleUpload()}
+          >
+            Upload
+          </Button>
+        </View>
 
-      <View style={styles.tabContainer}>
-        <ScrollView
-          horizontal
-          contentContainerStyle={styles.tabScrollContainer}
-          showsHorizontalScrollIndicator={false}
-        >
-          {_.map(fileList, (filename) => {
-            const displayName = (filename || "")
-              .replace(EXIST_FILE_PREFIX, "")
-              .replace(".csv", "");
-            return (
-              <PaperButton
-                key={displayName}
-                mode="contained"
-                labelStyle={styles.buttonText}
-                style={styles.button}
-                onPress={() => handleSwitchFiles(filename)}
-              >
-                {displayName}
-              </PaperButton>
-            );
-          })}
-        </ScrollView>
-      </View>
+        <View style={styles.tabContainer}>
+          <ScrollView
+            horizontal
+            contentContainerStyle={styles.tabScrollContainer}
+            showsHorizontalScrollIndicator={false}
+          >
+            {_.map(fileList, (filename) => {
+              return (
+                <LongPressButton
+                  key={filename}
+                  filename={filename}
+                  handleSwitchFiles={handleSwitchFiles}
+                  handleLongPress={handleLongPress}
+                  handleCleanFile={handleCleanFile}
+                />
+              );
+            })}
+          </ScrollView>
+        </View>
 
-      <View style={styles.listContainer}>
-        <FlatList
-          data={restaurants}
-          keyExtractor={(item) => item}
-          style={{ fontSize: 18 }}
-          renderItem={({ item, index }) => {
-            return (
-              <RestaurantItem
-                item={item}
-                index={index}
-                deleteRestaurant={deleteRestaurant}
-                restaurants={restaurants}
-                animatedLatestOnly={groupItems.length !== restaurants.length}
-              />
-            );
+        <View style={styles.listContainer}>
+          <FlatList
+            data={restaurants}
+            keyExtractor={(item) => item}
+            style={{ fontSize: 18 }}
+            renderItem={({ item, index }) => {
+              return (
+                <RestaurantItem
+                  item={item}
+                  index={index}
+                  deleteRestaurant={deleteRestaurant}
+                  restaurants={restaurants}
+                  animatedLatestOnly={groupItems.length !== restaurants.length}
+                />
+              );
+            }}
+          />
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <Button
+            mode="contained"
+            labelStyle={styles.buttonText}
+            style={styles.button}
+            onPress={() => handleDraw(1, data)}
+          >
+            1 抽
+          </Button>
+          <Button
+            mode="contained"
+            labelStyle={styles.buttonText}
+            style={styles.button}
+            onPress={() => handleDraw(MULTI_DRAW_NUM, data)}
+          >
+            {`${MULTI_DRAW_NUM}`} 抽
+          </Button>
+          <TouchableOpacity onPress={handleReload}>
+            <AntDesign name="reload1" style={styles.iconButton} />
+          </TouchableOpacity>
+        </View>
+
+        <DeleteDialog
+          visible={isDeleteDialogOpen}
+          onDismiss={() => setIsDeleteDialogOpen(false)}
+          msg={(longPressFilename || "")
+            .replace(EXIST_FILE_PREFIX, "")
+            .replace(".csv", "")}
+          onAction={() => {
+            handleCleanFile();
           }}
         />
       </View>
-
-      <View style={styles.buttonContainer}>
-        <PaperButton
-          mode="contained"
-          labelStyle={styles.buttonText}
-          style={styles.button}
-          onPress={() => handleDraw(1, data)}
-        >
-          1 抽
-        </PaperButton>
-        <PaperButton
-          mode="contained"
-          labelStyle={styles.buttonText}
-          style={styles.button}
-          onPress={() => handleDraw(MULTI_DRAW_NUM, data)}
-        >
-          {`${MULTI_DRAW_NUM}`} 抽
-        </PaperButton>
-        <TouchableOpacity onPress={handleReload}>
-          <AntDesign name="reload1" style={styles.iconButton} />
-        </TouchableOpacity>
-      </View>
-    </View>
+    </PaperProvider>
   );
 }
 
