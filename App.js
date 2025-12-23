@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { AntDesign } from "@expo/vector-icons";
-import { Button, PaperProvider } from "react-native-paper";
+import { Button, PaperProvider, Dialog, Portal } from "react-native-paper";
 import _ from "lodash";
 import {
   EXIST_FILE_PREFIX,
@@ -19,7 +19,9 @@ import {
   readExistedCsv,
   readFile,
   writeFile,
+  appendToExistedCsv,
 } from "./handleFiles";
+import AddItemDialog from "./components/AddItemDialog";
 import * as DocumentPicker from "expo-document-picker";
 import DeleteDialog from "./components/DeleteDialog";
 
@@ -27,6 +29,10 @@ const MULTI_DRAW_NUM = 5;
 const MAX_LIST = 11;
 const TOP_OFFSET = 16;
 const FUNCTION_BLOCK_HEIGHT = 72;
+
+// sample CSV content for development
+const SAMPLE_CSV_1 = `Sushi Place\nRamen House\nIzakaya\nCafe Latte\nBurger Joint`;
+const SAMPLE_CSV_2 = `Pizza Corner\nPasta Bistro\nSalad Bar\nTaco Stand\nBBQ Grill`;
 
 const RestaurantItem = ({
   item,
@@ -79,35 +85,23 @@ const RestaurantItem = ({
   );
 };
 
-const LongPressButton = ({
-  disabled,
-  filename,
-  handleSwitchFiles,
-  handleLongPress,
-}) => {
-  const displayName = (filename || "")
-    .replace(EXIST_FILE_PREFIX, "")
-    .replace(".csv", "");
+const LongPressButton = ({ disabled, filename, handleSwitchFiles, handleLongPress }) => {
+  const displayName = (filename || "").replace(EXIST_FILE_PREFIX, "").replace(".csv", "");
+  const active = !disabled;
 
   return (
-    <>
-      <TouchableOpacity
-        onPress={() => handleSwitchFiles(filename)}
-        onLongPress={() => {
-          handleLongPress(filename);
-        }}
-      >
-        <Button
-          key={displayName}
-          mode="contained"
-          labelStyle={styles.buttonText}
-          style={{ marginRight: 5 }}
-          disabled={disabled}
-        >
-          {displayName}
-        </Button>
-      </TouchableOpacity>
-    </>
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => handleSwitchFiles(filename)}
+      onLongPress={() => handleLongPress(filename)}
+      style={[styles.tabButtonWrapper]}
+    >
+      <View style={[styles.tabButton, active ? styles.tabButtonActive : null]}>
+        <Text style={[styles.tabButtonText, active ? styles.tabButtonTextActive : null]} numberOfLines={1}>
+          {displayName || "內建"}
+        </Text>
+      </View>
+    </TouchableOpacity>
   );
 };
 
@@ -119,6 +113,9 @@ export default function App() {
   const [currentDataFilename, setCurrentDataFilename] = useState("");
   const [longPressFilename, setLongPressFilename] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newItemText, setNewItemText] = useState("");
 
   useEffect(() => {
     initRead().then((newData) => {
@@ -135,7 +132,13 @@ export default function App() {
   const initRead = async () => {
     const newFileList = await findExistedFileList();
     setFileList(newFileList);
-    if (newFileList.length <= 0) return [];
+    if (newFileList.length <= 0) {
+      // no files found — use in-memory dummy data for development (do not write files)
+      const csvData = paresCsv(SAMPLE_CSV_1);
+      setData(csvData);
+      setCurrentDataFilename("");
+      return csvData;
+    }
 
     const newData = await readExistedCsv(newFileList[0]);
     setData(newData);
@@ -149,6 +152,7 @@ export default function App() {
   };
 
   const handleDraw = (num = 1, targetData) => {
+      handleLongPress("builtin.csv")
     let newRestaurants = null;
 
     if (num >= MULTI_DRAW_NUM) {
@@ -207,7 +211,28 @@ export default function App() {
 
   const handleLongPress = (filename) => {
     setLongPressFilename(filename);
+    setIsActionDialogOpen(true);
+  };
+
+  const openAddDialog = () => {
+    setIsActionDialogOpen(false);
+    setNewItemText("");
+    setIsAddDialogOpen(true);
+  };
+
+  const openDeleteConfirm = () => {
+    setIsActionDialogOpen(false);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleAddConfirm = async () => {
+    if (!longPressFilename || !newItemText) return;
+    const ok = await appendToExistedCsv(longPressFilename, newItemText);
+    if (ok) {
+      if (currentDataFilename === longPressFilename) {
+        setData((prev) => [...prev, newItemText]);
+      }
+    }
   };
 
   const handleCleanFile = async () => {
@@ -230,14 +255,14 @@ export default function App() {
     <PaperProvider>
       <View style={styles.container}>
         <View style={styles.uploadContainer}>
-          <Button
-            mode="contained"
-            labelStyle={styles.buttonText}
-            style={[styles.button, styles.uploadButton]}
+          <TouchableOpacity
+            activeOpacity={0.8}
             onPress={() => handleUpload()}
+            style={[styles.smallButton, styles.smallUploadButton]}
           >
-            Upload
-          </Button>
+            <AntDesign name="upload" style={styles.uploadIcon} />
+            <Text style={styles.smallButtonText}>Upload</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.tabContainer}>
@@ -312,6 +337,49 @@ export default function App() {
             handleCleanFile();
           }}
         />
+        <AddItemDialog
+          visible={isAddDialogOpen}
+          onDismiss={() => setIsAddDialogOpen(false)}
+          value={newItemText}
+          onChangeText={setNewItemText}
+          onConfirm={handleAddConfirm}
+        />
+
+        <Portal>
+          <Dialog
+            visible={isActionDialogOpen}
+            onDismiss={() => setIsActionDialogOpen(false)}
+          >
+            <Dialog.Title>Choose action</Dialog.Title>
+            <Dialog.Content>
+              <Text style={{ fontSize: 16 }}>
+                {`File: ${(longPressFilename || "").replace(
+                  EXIST_FILE_PREFIX,
+                  "",
+                )}`}
+              </Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setIsActionDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onPress={() => {
+                  openAddDialog();
+                }}
+              >
+                Add Item
+              </Button>
+              <Button
+                onPress={() => {
+                  openDeleteConfirm();
+                }}
+              >
+                Delete File
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
       </View>
     </PaperProvider>
   );
@@ -320,36 +388,40 @@ export default function App() {
 const styles = StyleSheet.create({
   tabScrollContainer: {},
   uploadContainer: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#F3F4F6",
     display: "flex",
-    padding: 8,
-    paddingTop: 24,
+    padding: 4,
+    paddingTop: 0,
+    paddingRight: 12,
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "flex-end",
     alignItems: "center",
-    height: FUNCTION_BLOCK_HEIGHT + TOP_OFFSET,
+    height: 48,
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(17,24,39,0.04)",
   },
   tabContainer: {
-    backgroundColor: "#E3E294",
+    backgroundColor: "#F3F4F6",
     display: "flex",
-    padding: 8,
+    padding: 4,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    height: FUNCTION_BLOCK_HEIGHT,
+    height: 36,
     position: "absolute",
-    top: FUNCTION_BLOCK_HEIGHT + TOP_OFFSET,
+    top: 48 + TOP_OFFSET,
     left: 0,
     right: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(17,24,39,0.04)",
   },
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#F6F7FB",
     display: "flex",
     padding: 16,
   },
@@ -357,8 +429,8 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     padding: 16,
-    paddingTop: FUNCTION_BLOCK_HEIGHT * 2 + TOP_OFFSET,
-    paddingBottom: FUNCTION_BLOCK_HEIGHT,
+    paddingTop: 48 + 36 + TOP_OFFSET,
+    paddingBottom: 48,
   },
   itemAnimated: {},
   listItem: {
@@ -366,48 +438,100 @@ const styles = StyleSheet.create({
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
-    borderStyle: "solid",
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 5,
-    marginBottom: 10,
-    backgroundColor: "#94C5E3",
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   itemText: {
     fontSize: 18,
-    color: "#000000",
+    color: "#111827",
   },
   buttonContainer: {
-    backgroundColor: "#E3E294",
+    backgroundColor: "transparent",
     display: "flex",
-    padding: 8,
+    padding: 12,
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     alignItems: "center",
-    height: FUNCTION_BLOCK_HEIGHT,
+    height: 48,
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
   },
   button: {
-    height: "100%",
+    minHeight: 48,
+    paddingHorizontal: 16,
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#404078",
-    width: "fit-content",
-    marginLeft: 3,
-    marginRight: 3,
+    backgroundColor: "#2563EB",
+    borderRadius: 10,
+    marginLeft: 6,
+    marginRight: 6,
+  },
+  smallButton: {
+    height: 32,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    alignSelf: "center",
+  },
+  smallButtonText: {
+    color: "#111827",
+    fontSize: 13,
+    marginLeft: 6,
+  },
+  uploadIcon: {
+    fontSize: 14,
+    color: "#111827",
+  },
+  smallUploadButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(17,24,39,0.08)",
+    paddingHorizontal: 8,
   },
   buttonText: {
     fontSize: 18,
+    color: "#FFFFFF",
   },
-  uploadButton: {
-    backgroundColor: "#7373D9",
-  },
+  /* primary uploadButton removed to avoid name collision; use `button` for primary buttons */
   iconButton: {
-    fontSize: 24,
-    color: "#404078",
+    fontSize: 22,
+    color: "#2563EB",
+  },
+  tabButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(17,24,39,0.06)",
+    borderRadius: 999,
+    minWidth: 72,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabButtonWrapper: {
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  tabButtonActive: {
+    backgroundColor: "#111827",
+  },
+  tabButtonText: {
+    color: "#111827",
+    fontSize: 14,
+  },
+  tabButtonTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });

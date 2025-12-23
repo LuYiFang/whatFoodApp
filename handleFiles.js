@@ -1,42 +1,43 @@
-import * as FileSystem from "expo-file-system";
+import * as FS from "expo-file-system/legacy";
 import { parse } from "papaparse";
 import _ from "lodash";
 
 export const EXIST_FILE_PREFIX = "foodFile_";
 
-export const readFile = async (filePath) => {
-  try {
-    const fileContent = await FileSystem.readAsStringAsync(filePath, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+// hardcoded development data (in-memory)
+const HARDCODED_FILENAME = "builtin.csv";
+const HARDCODED_ITEMS = [
+  "Sushi Place",
+  "Ramen House",
+  "Izakaya",
+  "Cafe Latte",
+  "Burger Joint",
+  "Pizza Corner",
+  "Pasta Bistro",
+  "Salad Bar",
+  "Taco Stand",
+  "BBQ Grill",
+];
+let inMemoryData = [...HARDCODED_ITEMS];
 
-    return fileContent;
-  } catch (error) {
-    console.error("Error reading file:", error);
-  }
+export const readFile = async (_filePath) => {
+  console.warn("readFile is disabled in dev mode (using hardcoded data)");
+  return null;
 };
 
-export const readExistedFile = async (filename) => {
-  const filePath = FileSystem.documentDirectory + filename;
-  return await readFile(filePath);
+export const readExistedFile = async (_filename) => {
+  console.warn("readExistedFile is disabled in dev mode (using hardcoded data)");
+  return null;
 };
 
-export const readExistedCsv = async (filename) => {
-  const fileContent = await readExistedFile(filename);
-  if (!fileContent) return;
-
-  return paresCsv(fileContent);
+export const readExistedCsv = async (_filename) => {
+  // return the in-memory hardcoded list
+  return inMemoryData;
 };
 
 export const findExistedFileList = async () => {
-  const fileList = await FileSystem.readDirectoryAsync(
-    FileSystem.documentDirectory,
-  );
-
-  return _.filter(
-    fileList,
-    (v) => _.startsWith(v, EXIST_FILE_PREFIX) && _.endsWith(v, ".csv"),
-  );
+  // expose a single builtin file so UI shows a tab
+  return [EXIST_FILE_PREFIX + HARDCODED_FILENAME];
 };
 
 export const paresCsv = (fileContent) => {
@@ -51,7 +52,7 @@ export const paresCsv = (fileContent) => {
 };
 
 export const copyFile = async (from, to) => {
-  await FileSystem.copyAsync({
+  await FS.copyAsync({
     from: from,
     to: to,
   });
@@ -60,8 +61,15 @@ export const copyFile = async (from, to) => {
 export const writeFile = async (path, content) => {
   try {
     const filename = EXIST_FILE_PREFIX + path;
-    const filePath = FileSystem.documentDirectory + filename;
-    await FileSystem.writeAsStringAsync(filePath, content);
+    // in dev mode, we won't persist to disk; update in-memory if writing builtin
+    if (path === HARDCODED_FILENAME) {
+      inMemoryData = (content || "").split(/\r?\n/).filter((v) => v);
+    }
+    try {
+      await FS.writeAsStringAsync(FS.documentDirectory + filename, content);
+    } catch (e) {
+      // ignore write errors in dev
+    }
     return filename;
   } catch (error) {
     console.error("Error writing file:", error);
@@ -71,11 +79,48 @@ export const writeFile = async (path, content) => {
 
 export const deleteFile = async (filename) => {
   try {
-    const filePath = FileSystem.documentDirectory + filename;
-    await FileSystem.deleteAsync(filePath);
+    // if deleting builtin, clear in-memory data
+    if (filename === EXIST_FILE_PREFIX + HARDCODED_FILENAME) {
+      inMemoryData = [];
+      return true;
+    }
+    const filePath = FS.documentDirectory + filename;
+    await FS.deleteAsync(filePath);
     return true;
   } catch (error) {
     console.error("Error deleting file:", error);
+    return false;
+  }
+};
+
+export const appendToExistedCsv = async (filename, newItem) => {
+  try {
+    // append to in-memory data for the builtin file
+    if (filename === EXIST_FILE_PREFIX + HARDCODED_FILENAME) {
+      const trimmed = (newItem || "").toString();
+      inMemoryData.push(trimmed);
+      return true;
+    }
+    // fallback: attempt to append to real file
+    const filePath = FS.documentDirectory + filename;
+    let content = "";
+    try {
+      content = await FS.readAsStringAsync(filePath, {
+        encoding: FS.EncodingType.UTF8,
+      });
+    } catch (err) {
+      content = "";
+    }
+    const trimmed = (newItem || "").toString();
+    const newLine = trimmed.includes("\n") ? trimmed : `${trimmed}`;
+    if (content && !content.endsWith("\n")) content = content + "\n";
+    const newContent = content + newLine + "\n";
+    await FS.writeAsStringAsync(filePath, newContent, {
+      encoding: FS.EncodingType.UTF8,
+    });
+    return true;
+  } catch (error) {
+    console.error("Error appending to CSV:", error);
     return false;
   }
 };
