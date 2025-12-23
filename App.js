@@ -454,18 +454,18 @@ const styles = StyleSheet.create({
   buttonContainer: {
     backgroundColor: "transparent",
     display: "flex",
-    padding: 12,
+    padding: 8,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    height: 48,
+    height: 44,
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
   },
   button: {
-    minHeight: 48,
+    minHeight: 40,
     paddingHorizontal: 16,
     display: "flex",
     flexDirection: "row",
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   buttonText: {
-    fontSize: 18,
+    fontSize: 16,
     color: "#FFFFFF",
   },
   /* primary uploadButton removed to avoid name collision; use `button` for primary buttons */
