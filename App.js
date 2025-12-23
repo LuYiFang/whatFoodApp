@@ -152,7 +152,7 @@ export default function App() {
   };
 
   const handleDraw = (num = 1, targetData) => {
-      handleLongPress("builtin.csv")
+      // handleLongPress("builtin.csv")
     let newRestaurants = null;
 
     if (num >= MULTI_DRAW_NUM) {
@@ -310,6 +310,7 @@ export default function App() {
             mode="contained"
             labelStyle={styles.buttonText}
             style={styles.button}
+            contentStyle={styles.buttonContent}
             onPress={() => handleDraw(1, data)}
           >
             1 抽
@@ -318,6 +319,7 @@ export default function App() {
             mode="contained"
             labelStyle={styles.buttonText}
             style={styles.button}
+            contentStyle={styles.buttonContent}
             onPress={() => handleDraw(MULTI_DRAW_NUM, data)}
           >
             {`${MULTI_DRAW_NUM}`} 抽
@@ -388,7 +390,7 @@ export default function App() {
 const styles = StyleSheet.create({
   tabScrollContainer: {},
   uploadContainer: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#E5E7EB",
     display: "flex",
     padding: 4,
     paddingTop: 0,
@@ -405,13 +407,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(17,24,39,0.04)",
   },
   tabContainer: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#E5E7EB",
     display: "flex",
     padding: 4,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    height: 36,
+    height: 48,
     position: "absolute",
     top: 48 + TOP_OFFSET,
     left: 0,
@@ -428,18 +430,18 @@ const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
     width: "100%",
-    padding: 16,
-    paddingTop: 48 + 36 + TOP_OFFSET,
-    paddingBottom: 48,
+    padding: 12,
+    paddingTop: 48 + 48 + TOP_OFFSET,
+    paddingBottom: 44,
   },
   itemAnimated: {},
   listItem: {
-    padding: 16,
+    padding: 12,
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 8,
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -475,8 +477,13 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     marginRight: 6,
   },
+  buttonContent: {
+    height: 36,
+    justifyContent: "center",
+    paddingVertical: 0,
+  },
   smallButton: {
-    height: 32,
+    height: 40,
     paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
