@@ -20,24 +20,39 @@ const HARDCODED_ITEMS = [
 ];
 let inMemoryData = [...HARDCODED_ITEMS];
 
-export const readFile = async (_filePath) => {
-  console.warn("readFile is disabled in dev mode (using hardcoded data)");
-  return null;
+export const readFile = async (filePath) => {
+  try {
+    const fileContent = await FS.readAsStringAsync(filePath, {
+      encoding: FS.EncodingType.UTF8,
+    });
+
+    return fileContent;
+  } catch (error) {
+    console.error("Error reading file:", error);
+  }
 };
 
-export const readExistedFile = async (_filename) => {
-  console.warn("readExistedFile is disabled in dev mode (using hardcoded data)");
-  return null;
+export const readExistedFile = async (filename) => {
+  const filePath = FS.documentDirectory + filename;
+  return await readFile(filePath);
 };
 
-export const readExistedCsv = async (_filename) => {
-  // return the in-memory hardcoded list
-  return inMemoryData;
+export const readExistedCsv = async (filename) => {
+  const fileContent = await readExistedFile(filename);
+  if (!fileContent) return;
+
+  return paresCsv(fileContent);
 };
 
 export const findExistedFileList = async () => {
-  // expose a single builtin file so UI shows a tab
-  return [EXIST_FILE_PREFIX + HARDCODED_FILENAME];
+  const fileList = await FS.readDirectoryAsync(
+    FS.documentDirectory,
+  );
+
+  return _.filter(
+    fileList,
+    (v) => _.startsWith(v, EXIST_FILE_PREFIX) && _.endsWith(v, ".csv"),
+  );
 };
 
 export const paresCsv = (fileContent) => {

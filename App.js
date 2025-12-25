@@ -8,6 +8,7 @@ import {
   Animated,
   ScrollView,
 } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AntDesign } from "@expo/vector-icons";
 import { Button, PaperProvider, Dialog, Portal } from "react-native-paper";
 import _ from "lodash";
@@ -28,11 +29,9 @@ import DeleteDialog from "./components/DeleteDialog";
 const MULTI_DRAW_NUM = 5;
 const MAX_LIST = 11;
 const TOP_OFFSET = 16;
-const FUNCTION_BLOCK_HEIGHT = 72;
 
 // sample CSV content for development
 const SAMPLE_CSV_1 = `Sushi Place\nRamen House\nIzakaya\nCafe Latte\nBurger Joint`;
-const SAMPLE_CSV_2 = `Pizza Corner\nPasta Bistro\nSalad Bar\nTaco Stand\nBBQ Grill`;
 
 const RestaurantItem = ({
   item,
@@ -78,7 +77,7 @@ const RestaurantItem = ({
             deleteRestaurant(item);
           }}
         >
-          <AntDesign name="closecircle" style={styles.iconButton} />
+          <Text style={styles.iconButton}>✕</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -106,6 +105,8 @@ const LongPressButton = ({ disabled, filename, handleSwitchFiles, handleLongPres
 };
 
 export default function App() {
+  // avoid calling useSafeAreaInsets here to prevent using the hook
+  // outside of SafeAreaProvider (which could cause a crash/blank screen)
   const [data, setData] = useState([]);
   const [restaurants, setRestaurants] = useState([]);
   const [groupItems, setGroupItems] = useState([]);
@@ -131,6 +132,7 @@ export default function App() {
 
   const initRead = async () => {
     const newFileList = await findExistedFileList();
+     console.log('newFileList', newFileList)
     setFileList(newFileList);
     if (newFileList.length <= 0) {
       // no files found — use in-memory dummy data for development (do not write files)
@@ -152,7 +154,6 @@ export default function App() {
   };
 
   const handleDraw = (num = 1, targetData) => {
-      // handleLongPress("builtin.csv")
     let newRestaurants = null;
 
     if (num >= MULTI_DRAW_NUM) {
@@ -252,9 +253,10 @@ export default function App() {
   };
 
   return (
-    <PaperProvider>
-      <View style={styles.container}>
-        <View style={styles.uploadContainer}>
+    <SafeAreaProvider>
+      <PaperProvider>
+        <SafeAreaView style={styles.container}>
+        <View style={[styles.uploadContainer, { top: 32 }]}>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => handleUpload()}
@@ -265,7 +267,7 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.tabContainer}>
+        <View style={[styles.tabContainer, { top: 32 + 48 + TOP_OFFSET }]}>
           <ScrollView
             horizontal
             contentContainerStyle={styles.tabScrollContainer}
@@ -286,7 +288,7 @@ export default function App() {
           </ScrollView>
         </View>
 
-        <View style={styles.listContainer}>
+        <View style={[styles.listContainer, { paddingTop: 32 + 48 + 48 + TOP_OFFSET + 8 }]}>
           <FlatList
             data={restaurants}
             keyExtractor={(item) => item}
@@ -325,7 +327,7 @@ export default function App() {
             {`${MULTI_DRAW_NUM}`} 抽
           </Button>
           <TouchableOpacity onPress={handleReload}>
-            <AntDesign name="reload1" style={styles.iconButton} />
+            <Text style={styles.iconButton}>⟲</Text>
           </TouchableOpacity>
         </View>
 
@@ -382,8 +384,9 @@ export default function App() {
             </Dialog.Actions>
           </Dialog>
         </Portal>
-      </View>
-    </PaperProvider>
+        </SafeAreaView>
+      </PaperProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -403,6 +406,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 10,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(17,24,39,0.04)",
   },
@@ -418,6 +422,7 @@ const styles = StyleSheet.create({
     top: 48 + TOP_OFFSET,
     left: 0,
     right: 0,
+    zIndex: 10,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(17,24,39,0.04)",
   },
@@ -432,7 +437,7 @@ const styles = StyleSheet.create({
     width: "100%",
     padding: 12,
     paddingTop: 48 + 48 + TOP_OFFSET,
-    paddingBottom: 44,
+    paddingBottom: 88,
   },
   itemAnimated: {},
   listItem: {
@@ -461,13 +466,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     height: 44,
+    zIndex: 10,
     position: "absolute",
-    bottom: 0,
+    bottom: 32,
     left: 0,
     right: 0,
   },
   button: {
-    minHeight: 40,
+    minHeight: 52,
     paddingHorizontal: 16,
     display: "flex",
     flexDirection: "row",
@@ -478,7 +484,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   buttonContent: {
-    height: 36,
+    height: 52,
     justifyContent: "center",
     paddingVertical: 0,
   },
@@ -507,7 +513,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: "#FFFFFF",
   },
   /* primary uploadButton removed to avoid name collision; use `button` for primary buttons */
@@ -541,4 +547,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "600",
   },
+  
 });
